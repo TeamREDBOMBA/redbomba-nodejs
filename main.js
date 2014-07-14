@@ -1,7 +1,8 @@
-var db_info = require('./db_info.js');
+var dbinfo = require('./dbinfo.js');
+var functions = require('./functions.js');
 
 var mysql = require('mysql');
-var mysqlConfig = db_info.config();
+var mysqlConfig = dbinfo.config();
 
 var mysql_conn;
 
@@ -87,9 +88,9 @@ io.sockets.on('connection', function (socket) {
         var gid = res.replace('Group', '');
         var uid = user[socket.id];
         if(data.name == "redbomba") uid = 1;
-        data.con = htmlEscape(data.con)
+        data.con = functions.htmlEscape(data.con)
         var con = data.con;
-        mysql_conn.query('insert into home_chatting (gid_id,uid_id,con,date_updated) values ("'+gid+'","'+uid+'","'+con+'","'+getTimeStamp()+'")',function(error){
+        mysql_conn.query('insert into home_chatting (gid_id,uid_id,con,date_updated) values ("'+gid+'","'+uid+'","'+con+'","'+functions.getTimeStamp()+'")',function(error){
               if(error) console.log("insert error:"+error);
               else io.sockets.in(res).emit("setChat",data);
             });
@@ -114,8 +115,8 @@ io.sockets.on('connection', function (socket) {
           }
           if(!val) val = '';
           if(!val_l) val_l = '';
-          for(i=0;i<getUserId(data).length;i++){
-            ui = getUserId(data)[i];
+          for(i=0;i<functions.getUserId(user,data).length;i++){
+            ui = functions.getUserId(user,data)[i];
             io.sockets.sockets[ui].emit('html',{'name':'#noti_value','html':val});
             io.sockets.sockets[ui].emit('html',{'name':'#field_value','html':val_l});
           }
@@ -270,7 +271,7 @@ socket.on('sendNotification', function (data){
     }else if(data=="all"){
       io.sockets.emit('group',data);
     }else{
-      if(getUserId(data.id).length) io.sockets.sockets[getUserId(data.id)[0]].emit('group',data);
+      if(functions.getUserId(user,data.id).length) io.sockets.sockets[functions.getUserId(user,data.id)[0]].emit('group',data);
     }
   });
 
@@ -486,44 +487,34 @@ socket.on('sendNotification', function (data){
     if(status=="Round"){
       var myround = 0;
       socket.get(status, function (error, res){ myround = res });
-      if(getUserId(data)[0]){
-        io.sockets.sockets[getUserId(data)[0]].get(status, function (error, res){
-          console.log("chkOnline("+status+"):user_"+data+"("+getUserId(data)+") in "+res);
+      if(functions.getUserId(user,data)[0]){
+        io.sockets.sockets[functions.getUserId(user,data)[0]].get(status, function (error, res){
+          console.log("chkOnline("+status+"):user_"+data+"("+functions.getUserId(user,data)+") in "+res);
           if(res == myround) io.sockets.in(res).emit("isRoundOnline",data);
           else io.sockets.in(res).emit("isRoundOffline",data);
         });
       }
     }else if(status == "Group"){
       socket.get(status, function (error, res){
-        console.log("chkOnline("+status+"):user_"+data+"("+getUserId(data)+") in "+res);
-        if(getUserId(data).length) io.sockets.in(res).emit("isOnline",{"id":data,"func":func});
+        console.log("chkOnline("+status+"):user_"+data+"("+functions.getUserId(user,data)+") in "+res);
+        if(functions.getUserId(user,data).length) io.sockets.in(res).emit("isOnline",{"id":data,"func":func});
         else io.sockets.in(res).emit("isOffline",{"id":data,"func":'isOffline'});
       });
     }
   }
 });
 
-function getUserId(userid){
-    var res = [];
-    for(key in user){
-        if(user[key] == userid){
-          res.push(key);
-        }
-      }
-      return res;
-  }
-
 function setNotification(uid,tablename,contents){
-    mysql_conn.query('insert into home_notification (uid_id,tablename,contents,date_read,date_updated) values ("'+uid+'","'+tablename+'","'+contents+'","-1","'+getTimeStamp()+'")',function(error){
+    mysql_conn.query('insert into home_notification (uid_id,tablename,contents,date_read,date_updated) values ("'+uid+'","'+tablename+'","'+contents+'","-1","'+functions.getTimeStamp()+'")',function(error){
       if(error){
         console.log("insert error:"+error)
       }else{
         mysql_conn.query('select uid_id from home_notification where uid_id='+uid,function(error,res){
           try{
             var innertext = res.length;
-            for(i=0;i<getUserId(uid).length;i++){
-              io.sockets.sockets[getUserId(uid)[i]].emit('html',{'name':'#noti_value','html':innertext});
-              if(tablename.search("league") != -1) io.sockets.sockets[getUserId(uid)[i]].emit('leagueReload','true');
+            for(i=0;i<functions.getUserId(user,uid).length;i++){
+              io.sockets.sockets[functions.getUserId(user,uid)[i]].emit('html',{'name':'#noti_value','html':innertext});
+              if(tablename.search("league") != -1) io.sockets.sockets[functions.getUserId(user,uid)[i]].emit('leagueReload','true');
             }
           }catch(e){
             console.log(e.message);
@@ -531,31 +522,6 @@ function setNotification(uid,tablename,contents){
         });
       }
     });
-  }
-
-  function getTimeStamp() {
-    var d = new Date();
-    var s =
-      leadingZeros(d.getFullYear(), 4) + '-' +
-      leadingZeros(d.getMonth() + 1, 2) + '-' +
-      leadingZeros(d.getDate(), 2) + ' ' +
-
-      leadingZeros((d.getHours()-9), 2) + ':' +
-      leadingZeros(d.getMinutes(), 2) + ':' +
-      leadingZeros(d.getSeconds(), 2);
-
-    return s;
-  }
-
-  function leadingZeros(n, digits) {
-    var zero = '';
-    n = n.toString();
-
-    if (n.length < digits) {
-      for (i = 0; i < digits - n.length; i++)
-        zero += '0';
-    }
-    return zero + n;
   }
 
 // runMatchAlarm(0);
@@ -572,18 +538,18 @@ function runMatchAlarm(v){
   qStr += "date_format(date_match, '%H') AS h,";
   qStr += "date_format(date_match, '%i') AS i,";
   qStr += "date_format(date_match, '%s') AS s";
-  qStr +=" from `home_leaguematch` where date_match > '"+dateFormat(date_now)+"'";
+  qStr +=" from `home_leaguematch` where date_match > '"+functions.dateFormat(date_now)+"'";
   if(v) qStr +=" AND (team_a_id in (select id from home_leagueteam where round_id = "+v+") OR team_b_id in (select id from home_leagueteam where round_id = "+v+"));";
   mysql_conn.query(qStr,function(error, res){
     if(error){
       console.log("insert error:"+error);
     }else{
-      console.log("NOW==========================="+getUnixtime(date_now));
+      console.log("NOW==========================="+functions.getUnixtime(date_now));
       for(i in res){
         date_match[i] = new Date(res[i].y,res[i].m - 1,res[i].d,res[i].h,res[i].i,res[i].s);
         date_match[i].setMinutes(date_match[i].getMinutes()-30);
-        time_diff = getUnixtime(date_match[i]) - getUnixtime(date_now);
-        console.log(res[i].id+"===="+dateFormat(date_match[i])+"===="+getUnixtime(date_match[i])+"===="+time_diff);
+        time_diff = functions.getUnixtime(date_match[i]) - functions.getUnixtime(date_now);
+        console.log(res[i].id+"===="+functions.dateFormat(date_match[i])+"===="+functions.getUnixtime(date_match[i])+"===="+time_diff);
         (function(id, time_diff){
           setTimeout(function(){
             console.log(id+"===========================called");
@@ -606,24 +572,4 @@ function runMatchAlarm(v){
       }
     }
   });
-}
-
-function dateFormat(datevar){
-  var datestr = "";
-  datestr = (datevar.getYear()+1900)+"-"+(datevar.getMonth()+1)+"-"+datevar.getDate();
-  datestr+= " "+datevar.getHours()+":"+datevar.getMinutes()+":"+datevar.getSeconds();
-  return datestr;
-}
-
-function getUnixtime(date){
-  return parseInt(date.getTime().toString());
-}
-
-function htmlEscape(str) {
-    return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
 }
