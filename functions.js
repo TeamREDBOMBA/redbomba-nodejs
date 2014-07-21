@@ -24,25 +24,12 @@ exports.getTimeStamp = function (datevar) {
 	  leadingZeros(d.getFullYear(), 4) + '-' +
 	  leadingZeros(d.getMonth() + 1, 2) + '-' +
 	  leadingZeros(d.getDate(), 2) + ' ' +
-
 	  leadingZeros((d.getHours()-9), 2) + ':' +
 	  leadingZeros(d.getMinutes(), 2) + ':' +
 	  leadingZeros(d.getSeconds(), 2);
 
 	return s;
 };
-/* Where has it gone?
-exports.leadingZeros = function (n, digits) {
-	var zero = '';
-	n = n.toString();
-
-	if (n.length < digits) {
-	  for (i = 0; i < digits - n.length; i++)
-	    zero += '0';
-	}
-	return zero + n;
-};
-*/
 
 exports.getUserId = function (user, userid) {
 	var res = [];
@@ -53,3 +40,14 @@ exports.getUserId = function (user, userid) {
 	  }
 	 return res;
 };
+
+function leadingZeros (n, digits) {
+	var zero = '';
+	n = n.toString();
+
+	if (n.length < digits) {
+	  for (i = 0; i < digits - n.length; i++)
+	    zero += '0';
+	}
+	return zero + n;
+}
