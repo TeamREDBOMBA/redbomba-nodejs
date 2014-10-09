@@ -129,7 +129,7 @@ io.sockets.on('connection', function (socket) {
 
     socket.on('sendNotification', function (data){
         console.log(Date.now()+" : "+'fromHTML:');
-        console.log(Date.now()+" : "+data);
+        console.log(Date.now()+" : "+data.action);
         /*if(data.action == "home_feed"){
          mysql_conn.query('select ufrom, uto from home_feed where id='+data.uto,function(error,res){
          try{
@@ -197,21 +197,21 @@ io.sockets.on('connection', function (socket) {
             mysql_conn.query('select uid_id from home_groupmember where gid_id='+data.gid,function(error,res){
                 try{
                     if(error){
-                        console.log(Date.now()+" : "+"Reply_error:"+error);
+                        console.log("League_JoinLeague("+Date.now()+") : "+"Reply_error:"+error);
                     }else{
                         for(var ele in res){
                             setNotification(res[ele].uid_id,data.action,data.lid);
                         }
                     }
                 }catch(e){
-                    console.log(Date.now()+" : "+e.message);
+                    console.log("League_JoinLeague("+Date.now()+") : "+e.message);
                 }
             });
         }else if(data.action == 'League_RunMatchMaker'){
             mysql_conn.query('select uid_id from home_groupmember where gid_id in (select gid_id from home_leagueteam where round_id in (select id from home_leagueround where id="'+data.lid+'" and round="'+data.round+'"))',function(error,res){
                 try{
                     if(error){
-                        console.log(Date.now()+" : "+"Reply_error:"+error);
+                        console.log("League_RunMatchMaker("+Date.now()+") : "+"Reply_error:"+error);
                     }else{
                         for(var ele in res){
                             setNotification(res[ele].uid_id,data.action,data.lid);
@@ -219,7 +219,7 @@ io.sockets.on('connection', function (socket) {
                         runMatchAlarm(data.lid);
                     }
                 }catch(e){
-                    console.log(Date.now()+" : "+e.message);
+                    console.log("League_RunMatchMaker("+Date.now()+") : "+e.message);
                 }
             });
         }else if(data.action == 'Group_InviteMember'){
@@ -516,7 +516,7 @@ io.sockets.on('connection', function (socket) {
 function setNotification(uid,action,contents){
     mysql_conn.query('insert into home_notification (uid_id,action,contents,date_read,date_updated) values ("'+uid+'","'+action+'","'+contents+'","-1","'+functions.getTimeStamp()+'")',function(error){
         if(error){
-            console.log(Date.now()+" : "+"insert error:"+error)
+            console.log("setNotification("+Date.now()+") : "+"insert error:"+error)
         }else{
             mysql_conn.query('select uid_id from home_notification where uid_id='+uid,function(error,res){
                 try{
@@ -526,7 +526,7 @@ function setNotification(uid,action,contents){
                         if(action.search("League_") != -1) io.sockets.sockets[functions.getUserId(user,uid)[i]].emit('leagueReload','true');
                     }
                 }catch(e){
-                    console.log(Date.now()+" : "+e.message);
+                    console.log("setNotification("+Date.now()+") : "+e.message);
                 }
             });
         }
