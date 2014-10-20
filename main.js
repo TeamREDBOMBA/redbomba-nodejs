@@ -11,13 +11,13 @@ function handleDisconnect(){
 
     mysql_conn.connect(function(err) {
         if(err) {
-            console.log(Date.now()+' : error when connecting to db:', err);
+            console.log("handleDisconnect("+Date.now()+') : error when connecting to db:', err);
             setTimeout(handleDisconnect, 2000);
         }
     });
 
     mysql_conn.on('error', function(err) {
-        console.log(Date.now()+' : db error', err);
+        console.log("handleDisconnect("+Date.now()+' ) : db error', err);
         if(err.code === 'PROTOCOL_CONNECTION_LOST') {
             handleDisconnect();
         } else {
@@ -38,28 +38,30 @@ io.sockets.on('connection', function (socket) {
 
     socket.on('disconnect', function () {
         var sid = user[socket.id];
-        var sgroup = 0;
-        var sround = 0;
-        console.log(Date.now()+" : "+socket.id+"("+user[socket.id]+") is disconneted.");
-        socket.get('Group', function (error, res){
-            sgroup=res;
-            socket.leave(res);
-        });
-        socket.get('Round', function (error, res){
-            sround=res;
-            socket.leave(res);
-        });
-        delete user[socket.id];
-        chkOnline(sid,"Group","disconnect");
-        chkOnline(sid,"Round","disconnect");
-        io.sockets.in(sgroup).emit("isOffline",sid);
-        io.sockets.in(sround).emit("isRoundOffline",sid);
+        if(sid != undefined){
+	        var sgroup = 0;
+	        var sround = 0;
+	        console.log("disconnect("+Date.now()+") : "+socket.id+"("+user[socket.id]+") is disconneted.");
+	        socket.get('Group', function (error, res){
+	            sgroup=res;
+	            socket.leave(res);
+	        });
+	        socket.get('Round', function (error, res){
+	            sround=res;
+	            socket.leave(res);
+	        });
+	        delete user[socket.id];
+	        chkOnline(sid,"Group","disconnect");
+	        chkOnline(sid,"Round","disconnect");
+	        io.sockets.in(sgroup).emit("isOffline",sid);
+	        io.sockets.in(sround).emit("isRoundOffline",sid);
+    	}
     });
 
     socket.on('addUser', function (data){
         user[socket.id] = data;
         chkOnline(data,"Group","addUser");
-        console.log(Date.now()+" : "+"user:"+user);
+        console.log("addUser("+Date.now()+") : "+"user:"+user);
     });
 
     socket.on('setHTML', function (data) {
@@ -75,7 +77,7 @@ io.sockets.on('connection', function (socket) {
     });
 
     socket.on('test', function (data){
-        console.log(Date.now()+" : "+data);
+        console.log("test("+Date.now()+") : "+data);
     });
 
     //--------------------------------------------------------------------------------------------------------------
@@ -91,8 +93,8 @@ io.sockets.on('connection', function (socket) {
                 if(data.name == "redbomba") uid = 1;
                 data.con = functions.htmlEscape(data.con)
                 var con = data.con;
-                mysql_conn.query('insert into home_chatting (gid_id,uid_id,con,date_updated) values ("'+gid+'","'+uid+'","'+con+'","'+functions.getTimeStamp()+'")',function(error){
-                    if(error) console.log(Date.now()+" : "+"insert error:"+error);
+                mysql_conn.query('insert into home_chatting (group_id,user_id,con,date_updated) values ("'+gid+'","'+uid+'","'+con+'","'+functions.getTimeStamp()+'")',function(error){
+                    if(error) console.log("chatGroup("+Date.now()+") : "+"insert error:"+error);
                     else io.sockets.in(res).emit("setChat",data);
                 });
             }
@@ -104,7 +106,7 @@ io.sockets.on('connection', function (socket) {
     //------------------------------------------------------------------------------------------------------------------
 
     socket.on('loadNotification', function (data){
-        mysql_conn.query('select id, action from home_notification where uid_id = '+data+' and date_read = "-1";',function(error,r3){
+        mysql_conn.query('select id, action from home_notification where user_id = '+data+' and date_read = "-1";',function(error,r3){
             try{
                 var val = 0;
                 var val_l = 0;
@@ -122,14 +124,14 @@ io.sockets.on('connection', function (socket) {
                     io.sockets.sockets[ui].emit('html',{'name':'#field_value','html':val_l});
                 }
             }catch(e){
-                console.log(Date.now()+" : "+e.message);
+                console.log("loadNotification("+Date.now()+") : "+e.message);
             }
         });
     });
 
     socket.on('sendNotification', function (data){
-        console.log(Date.now()+" : "+'fromHTML:');
-        console.log(Date.now()+" : "+data.action);
+        console.log("sendNotification("+Date.now()+") : "+'fromHTML:');
+        console.log("sendNotification("+Date.now()+") : "+data.action);
         /*if(data.action == "home_feed"){
          mysql_conn.query('select ufrom, uto from home_feed where id='+data.uto,function(error,res){
          try{
@@ -194,13 +196,13 @@ io.sockets.on('connection', function (socket) {
          });
          }else */
         if(data.action == 'League_JoinLeague'){ // When reply was inserted
-            mysql_conn.query('select uid_id from home_groupmember where gid_id='+data.gid,function(error,res){
+            mysql_conn.query('select user_id from home_groupmember where group_id='+data.gid,function(error,res){
                 try{
                     if(error){
                         console.log("League_JoinLeague("+Date.now()+") : "+"Reply_error:"+error);
                     }else{
                         for(var ele in res){
-                            setNotification(res[ele].uid_id,data.action,data.lid);
+                            setNotification(res[ele].user_id,data.action,data.lid);
                         }
                     }
                 }catch(e){
@@ -208,13 +210,13 @@ io.sockets.on('connection', function (socket) {
                 }
             });
         }else if(data.action == 'League_RunMatchMaker'){
-            mysql_conn.query('select uid_id from home_groupmember where gid_id in (select gid_id from home_leagueteam where round_id in (select id from home_leagueround where id="'+data.lid+'" and round="'+data.round+'"))',function(error,res){
+            mysql_conn.query('select user_id from home_groupmember where group_id in (select group_id from home_leagueteam where round_id in (select id from home_leagueround where id="'+data.lid+'" and round="'+data.round+'"))',function(error,res){
                 try{
                     if(error){
                         console.log("League_RunMatchMaker("+Date.now()+") : "+"Reply_error:"+error);
                     }else{
                         for(var ele in res){
-                            setNotification(res[ele].uid_id,data.action,data.lid);
+                            setNotification(res[ele].user_id,data.action,data.lid);
                         }
                         runMatchAlarm(data.lid);
                     }
@@ -229,7 +231,7 @@ io.sockets.on('connection', function (socket) {
             console.log(Date.now()+" : "+data.group_uid+", "+data.action+", "+data.uid);
             setNotification(data.group_uid,data.action,data.uid);
         }else if(data.action == 'Group_AddMember'){
-            mysql_conn.query('select uid_id from home_groupmember where gid_id='+data.gid,function(error,res){
+            mysql_conn.query('select user_id from home_groupmember where group_id='+data.gid,function(error,res){
                 try{
                     if(error){
                         console.log(Date.now()+" : "+"Reply_error:"+error);
@@ -253,12 +255,12 @@ io.sockets.on('connection', function (socket) {
     socket.on('joinGroup', function (data){
         socket.join('Group'+data);
         socket.set('Group', 'Group'+data);
-        console.log(Date.now()+" : "+data);
+        console.log("joinGroup("+Date.now()+") : "+data);
     });
 
     socket.on('leaveGroup', function (data){
         socket.get('Group', function (error, group){
-            console.log(Date.now()+" : "+group+"leave Group");
+            console.log("leaveGroup("+Date.now()+") : "+group+"leave Group");
             socket.leave(group);
         });
     });
@@ -275,7 +277,7 @@ io.sockets.on('connection', function (socket) {
 
     socket.on('setGroup', function (data) {
         if(data.to=="group"){
-            console.log(Date.now()+" : "+"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! = "+data.id);
+            console.log("setGroup("+Date.now()+") : "+" = "+data.id);
             io.sockets.in('Group'+data.id).emit('group',data);
         }else if(data=="all"){
             io.sockets.emit('group',data);
@@ -291,16 +293,16 @@ io.sockets.on('connection', function (socket) {
     socket.on('addRoundUser', function (data){
         user[socket.id] = data;
         chkOnline(data,"Round","addRoundUser");
-        console.log(Date.now()+" : "+user);
+        console.log("addRoundUser("+Date.now()+") : "+user);
     });
 
     socket.on('joinRound', function (data){
         socket.join("Match"+data.round_id);
         socket.set('Round', "Match"+data.round_id);
         mysql_conn.query('select state, result from `home_leaguematch` where `id`='+data.round_id+';',function(error, res){
-            if(error) console.log(Date.now()+" : "+"insert error:"+error);
+            if(error) console.log("joinRound("+Date.now()+") : "+"insert error:"+error);
             else{
-                console.log(Date.now()+" : "+"state:"+res[0].state);
+                console.log("joinRound("+Date.now()+") : "+"state:"+res[0].state);
                 if(res[0].state == 3 && res[0].result != data.side){
                     socket.emit("state",{'state':3,'result':res[0].result});
                 }else if(res[0].state == 7 && res[0].result != data.side){
@@ -314,7 +316,7 @@ io.sockets.on('connection', function (socket) {
 
     socket.on('leaveRound', function (data){
         socket.get('Round', function (error, round){
-            console.log(Date.now()+" : "+user[socket.id]+" leave "+round)
+            console.log("leaveRound("+Date.now()+") : "+user[socket.id]+" leave "+round)
             socket.leave(round);
         });
     });
@@ -328,7 +330,7 @@ io.sockets.on('connection', function (socket) {
     socket.on('setResult', function (data){
         socket.get('Round', function (error, round){
             result[data.side][round] = data.result;
-            console.log(Date.now()+" : "+round+"_"+data.side+"="+result[data.side][round]);
+            console.log("setResult("+Date.now()+") : "+round+"_"+data.side+"="+result[data.side][round]);
             if(result['A'][round]&&result['B'][round]){
                 if(result['A'][round] == result['B'][round]){
                     io.sockets.in(round).emit("setResult",0);
@@ -493,32 +495,34 @@ io.sockets.on('connection', function (socket) {
     //--------------------------------------------------------------------------------------------------------------
 
     function chkOnline(data,status,func){
-        if(status=="Round"){
-            var myround = 0;
-            socket.get(status, function (error, res){ myround = res });
-            if(functions.getUserId(user,data)[0]){
-                io.sockets.sockets[functions.getUserId(user,data)[0]].get(status, function (error, res){
-                    console.log(Date.now()+" : "+"chkOnline("+status+"):user_"+data+"("+functions.getUserId(user,data)+") in "+res);
-                    if(res == myround) io.sockets.in(res).emit("isRoundOnline",data);
-                    else io.sockets.in(res).emit("isRoundOffline",data);
-                });
-            }
-        }else if(status == "Group"){
-            socket.get(status, function (error, res){
-                console.log(Date.now()+" : "+"chkOnline("+status+"):user_"+data+"("+functions.getUserId(user,data)+") in "+res);
-                if(functions.getUserId(user,data).length) io.sockets.in(res).emit("isOnline",{"id":data,"func":func});
-                else io.sockets.in(res).emit("isOffline",{"id":data,"func":'isOffline'});
-            });
-        }
+    	if(data != undefined){
+	        if(status=="Round"){
+	            var myround = 0;
+	            socket.get(status, function (error, res){ myround = res });
+	            if(functions.getUserId(user,data)[0]){
+	                io.sockets.sockets[functions.getUserId(user,data)[0]].get(status, function (error, res){
+	                    console.log(Date.now()+" : "+"chkOnline("+status+"):user_"+data+"("+functions.getUserId(user,data)+") in "+res);
+	                    if(res == myround) io.sockets.in(res).emit("isRoundOnline",data);
+	                    else io.sockets.in(res).emit("isRoundOffline",data);
+	                });
+	            }
+	        }else if(status == "Group"){
+	            socket.get(status, function (error, res){
+	                console.log(Date.now()+" : "+"chkOnline("+status+"):user_"+data+"("+functions.getUserId(user,data)+") in "+res);
+	                if(functions.getUserId(user,data).length) io.sockets.in(res).emit("isOnline",{"id":data,"func":func});
+	                else io.sockets.in(res).emit("isOffline",{"id":data,"func":'isOffline'});
+	            });
+	        }
+    	}
     }
 });
 
 function setNotification(uid,action,contents){
-    mysql_conn.query('insert into home_notification (uid_id,action,contents,date_read,date_updated) values ("'+uid+'","'+action+'","'+contents+'","-1","'+functions.getTimeStamp()+'")',function(error){
+    mysql_conn.query('insert into home_notification (user_id,action,contents,date_read,date_updated) values ("'+uid+'","'+action+'","'+contents+'","-1","'+functions.getTimeStamp()+'")',function(error){
         if(error){
             console.log("setNotification("+Date.now()+") : "+"insert error:"+error)
         }else{
-            mysql_conn.query('select uid_id from home_notification where uid_id='+uid,function(error,res){
+            mysql_conn.query('select user_id from home_notification where user_id='+uid,function(error,res){
                 try{
                     var innertext = res.length;
                     for(i=0;i<functions.getUserId(user,uid).length;i++){
@@ -562,14 +566,14 @@ function runMatchAlarm(v){
                 (function(id, time_diff){
                     setTimeout(function(){
                         console.log(Date.now()+" : "+id+"===========================called");
-                        mysql_conn.query('select uid_id from home_groupmember where gid_id in (select group_id_id from home_leagueteam where id in (select team_a_id from home_leaguematch where id='+id+' ) or id in (select team_b_id from home_leaguematch where id='+id+' ))',function(error,res2){
+                        mysql_conn.query('select user_id from home_groupmember where group_id in (select group_id from home_leagueteam where id in (select team_a_id from home_leaguematch where id='+id+' ) or id in (select team_b_id from home_leaguematch where id='+id+' ))',function(error,res2){
                             try{
                                 if(error){
                                     console.log(Date.now()+" : "+"Reply_error:"+error);
                                 }else{
                                     for(var ele in res2){
-                                        console.log(Date.now()+" : "+"setTimeout : "+res2[ele].uid_id);
-                                        setNotification(res2[ele].uid_id,'League_StartMatch',id);
+                                        console.log(Date.now()+" : "+"setTimeout : "+res2[ele].user_id);
+                                        setNotification(res2[ele].user_id,'League_StartMatch',id);
                                     }
                                 }
                             }catch(e){
