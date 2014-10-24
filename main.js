@@ -1,6 +1,7 @@
 var dbinfo = require('./dbinfo.js');
 var functions = require('./functions.js');
 
+var http = require('http');
 var mysql = require('mysql');
 var mysqlConfig = dbinfo.config();
 
@@ -518,23 +519,28 @@ io.sockets.on('connection', function (socket) {
 });
 
 function setNotification(uid,action,contents){
-    mysql_conn.query('insert into home_notification (user_id,action,contents,date_read,date_updated) values ("'+uid+'","'+action+'","'+contents+'","-1","'+functions.getTimeStamp()+'")',function(error){
-        if(error){
-            console.log("setNotification("+Date.now()+") : "+"insert error:"+error)
-        }else{
-            mysql_conn.query('select user_id from home_notification where user_id='+uid,function(error,res){
-                try{
-                    var innertext = res.length;
-                    for(i=0;i<functions.getUserId(user,uid).length;i++){
-                        io.sockets.sockets[functions.getUserId(user,uid)[i]].emit('html',{'name':'#noti_value','html':innertext});
-                        if(action.search("League_") != -1) io.sockets.sockets[functions.getUserId(user,uid)[i]].emit('leagueReload','true');
+    var path = '/socket/notification/?ele_action='+action+'&ele_user='+uid+'&ele_contents='+contents;
+	var options = {
+      host: '0.0.0.0',
+      port:8000,
+      path: path
+    };
+
+    http.request(options, function(response) {
+      response.on('data', function (chunk) {
+        mysql_conn.query('select user_id from home_notification where user_id='+uid,function(error,res){
+                    try{
+                        var innertext = res.length;
+                        for(i=0;i<functions.getUserId(user,uid).length;i++){
+                            io.sockets.sockets[functions.getUserId(user,uid)[i]].emit('html',{'name':'#noti_value','html':innertext});
+                            if(action.search("League_") != -1) io.sockets.sockets[functions.getUserId(user,uid)[i]].emit('leagueReload','true');
+                        }
+                    }catch(e){
+                        console.log("setNotification("+Date.now()+") : "+e.message);
                     }
-                }catch(e){
-                    console.log("setNotification("+Date.now()+") : "+e.message);
-                }
-            });
-        }
-    });
+                });
+      });
+    }).end();
 }
 
 // runMatchAlarm(0);
