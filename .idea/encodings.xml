@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="Encoding" useUTFGuessing="true" native2AsciiForPropertiesFiles="false" />
+  <component name="Encoding" useUTFGuessing="true" native2AsciiForPropertiesFiles="false">
+    <file url="file://$USER_HOME$/Desktop/11.htm" charset="UTF-8" />
+    <file url="file://$USER_HOME$/socket/index.js" charset="UTF-8" />
+  </component>
 </project>
 

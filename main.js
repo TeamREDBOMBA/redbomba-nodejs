@@ -1,6 +1,7 @@
 var dbinfo = require('./dbinfo.js');
 var functions = require('./functions.js');
 
+var querystring = require('querystring');
 var http = require('http');
 var mysql = require('mysql');
 var mysqlConfig = dbinfo.config();
@@ -96,9 +97,8 @@ io.sockets.on('connection', function (socket) {
                 if(data.name == "redbomba") uid = 1;
                 data.con = functions.htmlEscape(data.con)
                 var con = data.con;
-                mysql_conn.query('insert into home_chatting (group_id,user_id,con,date_updated) values ("'+gid+'","'+uid+'","'+con+'","'+functions.getTimeStamp()+'")',function(error){
-                    if(error) console.log("chatGroup("+new Date()+") : "+"insert error:"+error);
-                    else io.sockets.in(res).emit("setChat",data);
+                callDB('mode=setChatting', {'user_id':uid, 'group_id':gid, 'contents':con}, function(db_res){
+                    io.sockets.in(res).emit("setChat",data);
                 });
             }
         });
@@ -498,50 +498,68 @@ io.sockets.on('connection', function (socket) {
     //--------------------------------------------------------------------------------------------------------------
 
     function chkOnline(data,status,func){
-    	if(data != undefined){
-	        if(status=="Round"){
-	            var myround = 0;
-	            socket.get(status, function (error, res){ myround = res });
-	            if(functions.getUserId(user,data)[0]){
-	                io.sockets.sockets[functions.getUserId(user,data)[0]].get(status, function (error, res){
-	                    console.log(new Date()+" : "+"chkOnline("+status+"):user_"+data+"("+functions.getUserId(user,data)+") in "+res);
-	                    if(res == myround) io.sockets.in(res).emit("isRoundOnline",data);
-	                    else io.sockets.in(res).emit("isRoundOffline",data);
-	                });
-	            }
-	        }else if(status == "Group"){
-	            socket.get(status, function (error, res){
-	                console.log(new Date()+" : "+"chkOnline("+status+"):user_"+data+"("+functions.getUserId(user,data)+") in "+res);
-	                if(functions.getUserId(user,data).length) io.sockets.in(res).emit("isOnline",{"id":data,"func":func});
-	                else io.sockets.in(res).emit("isOffline",{"id":data,"func":'isOffline'});
-	            });
-	        }
-    	}
+        if(data != undefined){
+            if(status=="Round"){
+                var myround = 0;
+                socket.get(status, function (error, res){ myround = res });
+                if(functions.getUserId(user,data)[0]){
+                    io.sockets.sockets[functions.getUserId(user,data)[0]].get(status, function (error, res){
+                        console.log(new Date()+" : "+"chkOnline("+status+"):user_"+data+"("+functions.getUserId(user,data)+") in "+res);
+                        if(res == myround) io.sockets.in(res).emit("isRoundOnline",data);
+                        else io.sockets.in(res).emit("isRoundOffline",data);
+                    });
+                }
+            }else if(status == "Group"){
+                socket.get(status, function (error, res){
+                    console.log(new Date()+" : "+"chkOnline("+status+"):user_"+data+"("+functions.getUserId(user,data)+") in "+res);
+                    if(functions.getUserId(user,data).length) io.sockets.in(res).emit("isOnline",{"id":data,"func":func});
+                    else io.sockets.in(res).emit("isOffline",{"id":data,"func":'isOffline'});
+                });
+            }
+        }
     }
 });
 
-function setNotification(uid,action,contents){
-    var path = '/socket/notification/?ele_action='+action+'&ele_user='+uid+'&ele_contents='+contents;
-	var options = {
-      host: '0.0.0.0',
-      port:8000,
-      path: path
+function callDB(addr, query, callback){
+    var query_json = querystring.stringify(query);
+    var path = '/socket/?'+addr+"&"+query_json;
+
+    var options = {
+        host: '0.0.0.0',
+        port:8000,
+        path: path
     };
 
     http.request(options, function(response) {
-      response.on('data', function (chunk) {
-        mysql_conn.query('select user_id from home_notification where user_id='+uid,function(error,res){
-                    try{
-                        var innertext = res.length;
-                        for(i=0;i<functions.getUserId(user,uid).length;i++){
-                            io.sockets.sockets[functions.getUserId(user,uid)[i]].emit('html',{'name':'#noti_value','html':innertext});
-                            if(action.search("League_") != -1) io.sockets.sockets[functions.getUserId(user,uid)[i]].emit('leagueReload','true');
-                        }
-                    }catch(e){
-                        console.log("setNotification("+new Date()+") : "+e.message);
+        response.setEncoding('utf8');
+        console.log("callDB("+new Date()+") : "+path);
+        response.on('data', callback);
+    }).end();
+}
+
+function setNotification(uid,action,contents){
+    var path = '/socket/?mode=setNotification&ele_action='+action+'&ele_user='+uid+'&ele_contents='+contents;
+    var options = {
+        host: '0.0.0.0',
+        port:8000,
+        path: path
+    };
+
+    http.request(options, function(response) {
+        response.on('data', function (chunk) {
+            mysql_conn.query('select user_id from home_notification where user_id='+uid,function(error,res){
+                try{
+                    try{ var innertext = res.length; }
+                    catch(e){ var innertext = 1; }
+                    for(i=0;i<functions.getUserId(user,uid).length;i++){
+                        io.sockets.sockets[functions.getUserId(user,uid)[i]].emit('html',{'name':'#noti_value','html':innertext});
+                        if(action.search("League_") != -1) io.sockets.sockets[functions.getUserId(user,uid)[i]].emit('leagueReload','true');
                     }
-                });
-      });
+                }catch(e){
+                    console.log("setNotification("+new Date()+") : "+e.message);
+                }
+            });
+        });
     }).end();
 }
 
