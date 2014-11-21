@@ -135,69 +135,6 @@ io.sockets.on('connection', function (socket) {
     socket.on('sendNotification', function (data){
         console.log("sendNotification("+new Date()+") : "+'fromHTML:');
         console.log("sendNotification("+new Date()+") : "+data.action);
-        /*if(data.action == "home_feed"){
-         mysql_conn.query('select ufrom, uto from home_feed where id='+data.uto,function(error,res){
-         try{
-         if(error){
-         console.log(new Date()+" : "+"Feed_error:"+error)
-         }else{
-         if(res[0].ufrom != res[0].uto){
-         if(data.ufrom != res[0].ufrom) setNotification(res[0].ufrom,data.tablename,data.uto);
-         if(data.ufrom != res[0].uto) setNotification(res[0].uto,data.tablename,data.uto);
-         }
-         }
-         }catch(e){
-         console.log(new Date()+" : "+e.message);
-         }
-         });
-         mysql_conn.query('select distinct ufrom_id from home_reply where fid_id='+data.uto,function(error,res){
-         try{
-         if(error){
-         console.log(new Date()+" : "+"Reply_error:"+error);
-         }else{
-         for(var ele in res){
-         if(data.ufrom != res[ele].ufrom){
-         setNotification(res[ele].ufrom,data.tablename,data.uto);
-         }
-         }
-         }
-         }catch(e){
-         console.log(new Date()+" : "+e.message);
-         }
-         });
-         }else if(data.action == "home_smile"){ // When Smile was inserted
-
-
-         mysql_conn.query('select f.ufrom, f.ufromtype, f.uto, f.utotype from home_smile s, home_feed f where s.fid = f.id AND f.id='+data.uto,function(error,res){
-         if(error){
-         console.log(new Date()+" : "+"Smile_error:"+error)
-         }else{
-         if(res[0].ufrom != res[0].uto && res[0].ufromtype == res[0].utotype){
-         if(data.ufrom != res[0].ufrom) setNotification(res[0].ufrom,data.tablename,data.uto);
-         if(data.ufrom != res[0].uto) setNotification(res[0].uto,data.tablename,data.uto);
-         }else if(res[0].ufromtype != res[0].utotype){
-         if(data.ufrom != res[0].ufrom) setNotification(res[0].ufrom,data.tablename,data.uto);
-         }
-         }
-         });
-         }else if(data.action == "home_reply"){ // When reply was inserted
-         mysql_conn.query('select distinct ufrom_id from home_reply where fid_id='+data.uto,function(error,res){
-         try{
-         if(error){
-         console.log(new Date()+" : "+"Reply_error:"+error);
-         }else{
-         for(var ele in res){
-         console.log(Number(data.ufrom)+", "+res[ele].ufrom_id)
-         if(Number(data.ufrom) != res[ele].ufrom_id){
-         setNotification(res[ele].ufrom_id,data.tablename,data.uto);
-         }
-         }
-         }
-         }catch(e){
-         console.log(new Date()+" : "+e.message);
-         }
-         });
-         }else */
         if(data.action == 'League_JoinLeague'){ // When reply was inserted
             mysql_conn.query('select user_id from home_groupmember where group_id='+data.gid,function(error,res){
                 try{
