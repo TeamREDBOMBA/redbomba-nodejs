@@ -135,21 +135,25 @@ io.sockets.on('connection', function (socket) {
     socket.on('sendNotification', function (data){
         console.log("sendNotification("+new Date()+") : "+'fromHTML:');
         console.log("sendNotification("+new Date()+") : "+data.action);
-        if(data.action == 'League_JoinLeague'){ // When reply was inserted
-            mysql_conn.query('select user_id from home_groupmember where group_id='+data.gid,function(error,res){
-                try{
-                    if(error){
-                        console.log("League_JoinLeague("+new Date()+") : "+"Reply_error:"+error);
-                    }else{
-                        for(var ele in res){
-                            setNotification(res[ele].user_id,data.action,data.lid);
-                        }
-                    }
-                }catch(e){
-                    console.log("League_JoinLeague("+new Date()+") : "+e.message);
+
+        if(data.action == 'League_JoinLeague'){
+
+            callDB('mode=sendNotification', {'action':data.action,'group_id':data.gid}, function(db_res){
+                res_json = JSON.parse(db_res);
+                for(var ele in res_json) {
+                    setNotification(res_json[ele].user_id, data.action, data.lid);
                 }
             });
+
         }else if(data.action == 'League_RunMatchMaker'){
+
+//            callDB('mode=sendNotification', {'action':data.action,'league_id':data.gid}, function(db_res){
+//                res_json = JSON.parse(db_res);
+//                for(var ele in res_json) {
+//                    setNotification(res_json[ele].user_id, data.action, data.lid);
+//                }
+//            });
+
             mysql_conn.query('select user_id from home_groupmember where group_id in (select group_id from home_leagueteam where round_id in (select id from home_leagueround where id="'+data.lid+'" and round="'+data.round+'"))',function(error,res){
                 try{
                     if(error){
@@ -475,6 +479,7 @@ function callDB(addr, query, callback){
 }
 
 function setNotification(uid,action,contents){
+    console.log("setNotification("+new Date()+") : "+"uid="+uid+"&action="+action+"&contents="+contents);
     var path = '/socket/?mode=setNotification&ele_action='+action+'&ele_user='+uid+'&ele_contents='+contents;
     var options = {
         host: '0.0.0.0',
